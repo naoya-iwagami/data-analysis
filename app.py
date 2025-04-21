@@ -145,6 +145,9 @@ with st.sidebar:
 for msg in st.session_state.messages:  
     with st.chat_message(msg["role"]):  
         st.markdown(msg["content"])  
+        if "images" in msg and msg["images"]:  
+            for img in msg["images"]:  
+                st.image(img)  
   
 # チャット入力欄（ページ下部に固定、Enter送信）  
 prompt = st.chat_input("質問や分析したい内容を入力してください")  
@@ -157,7 +160,7 @@ if prompt:
     thread_id = st.session_state.thread_id  
   
     # 2. ユーザー発言を履歴に追加  
-    st.session_state.messages.append({"role": "user", "content": prompt})  
+    st.session_state.messages.append({"role": "user", "content": prompt, "images": []})  
     with st.chat_message("user"):  
         st.markdown(prompt)  
   
@@ -195,23 +198,33 @@ if prompt:
     # 7. AI応答の取得  
     if run_status.status != "completed":  
         assistant_response = f"分析に失敗しました: {run_status.status}"  
+        images = []  
     else:  
         messages = client.beta.threads.messages.list(thread_id=thread_id)  
         assistant_messages = [m for m in messages.data if m.role == "assistant"]  
         if assistant_messages:  
             msg = assistant_messages[0]  
             assistant_response = ""  
+            images = []  
             for content in msg.content:  
                 if content.type == "text":  
                     assistant_response += content.text.value  
                 elif content.type == "image_file":  
                     image_file_id = content.image_file.file_id  
                     image_content = client.files.content(image_file_id)  
-                    st.image(image_content.read())  
+                    image_bytes = image_content.read()  
+                    images.append(image_bytes)  
         else:  
             assistant_response = "アシスタントからの応答がありません。"  
+            images = []  
   
-    # 8. チャット履歴にAI応答追加  
-    st.session_state.messages.append({"role": "assistant", "content": assistant_response})  
+    # 8. チャット履歴にAI応答追加（画像も保存）  
+    st.session_state.messages.append({  
+        "role": "assistant",  
+        "content": assistant_response,  
+        "images": images  
+    })  
     with st.chat_message("assistant"):  
         st.markdown(assistant_response)  
+        for img in images:  
+            st.image(img)  
