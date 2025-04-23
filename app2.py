@@ -4,7 +4,7 @@ import openai
 import time  
 import re  
 from collections import defaultdict  
-
+  
 # Azure OpenAIの設定（環境変数から取得）  
 AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY")  
 AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")  
@@ -226,6 +226,13 @@ if prompt:
                     image_content = client.files.content(image_file_id)  
                     image_bytes = image_content.read()  
                     images.append(image_bytes)  
+                    # 画像ファイルを取得した直後に削除（アシスタント生成画像のみ）  
+                    file_info = client.files.retrieve(image_file_id)  
+                    if is_assistant_generated_png(file_info.filename):  
+                        try:  
+                            client.files.delete(image_file_id)  
+                        except Exception as e:  
+                            st.warning(f"一時画像ファイルの削除に失敗: {e}")  
         else:  
             assistant_response = "アシスタントからの応答がありません。"  
             images = []  
